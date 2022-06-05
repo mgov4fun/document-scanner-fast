@@ -197,7 +197,7 @@ internal class ScanSurfaceView : FrameLayout {
             points[0], points[1], points[2], points[3], resultWidth.toInt(), resultHeight.toInt())
 
         if (imgDetectionPropsObj.isNotValidImage(approx)) {
-            scanCanvasView.clearShape()
+            scanCanvasView.showShape(previewWidth, previewHeight, points)
             cancelAutoCapture()
         } else {
             if (isAutoCaptureOn && !isAutoCaptureScheduled) {
