@@ -57,7 +57,7 @@ internal class ScanCanvasView : FrameLayout {
     var pointer4: View = View(context)
 
     init {
-        paint.color = ContextCompat.getColor(context, R.color.zdc_white_transparent)
+        paint.color = ContextCompat.getColor(context, R.color.zdc_green_transparent)
         border.color = ContextCompat.getColor(context, android.R.color.white)
         border.strokeWidth = context.resources.getDimension(R.dimen.zdc_polygon_line_stroke_width)
         border.style = Paint.Style.STROKE
