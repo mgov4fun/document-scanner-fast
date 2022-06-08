@@ -203,7 +203,7 @@ internal class OpenCvNativeBridge {
         val mHierarchy = Mat()
         val mContourList: List<MatOfPoint> = ArrayList()
         //finding contours - as we are sorting by area anyway, we can use RETR_LIST - faster than RETR_EXTERNAL.
-        Imgproc.findContours(inputMat, mContourList, mHierarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE)
+        Imgproc.findContours(inputMat, mContourList, mHierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
 
         // Convert the contours to their Convex Hulls i.e. removes minor nuances in the contour
         val mHullList: MutableList<MatOfPoint> = ArrayList()
