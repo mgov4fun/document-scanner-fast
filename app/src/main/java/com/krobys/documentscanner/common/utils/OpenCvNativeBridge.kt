@@ -119,10 +119,9 @@ internal class OpenCvNativeBridge {
         Log.i("DESENHAR", "Quad----->$quad")
         if (quad != null) {
             val rescaledPoints = quad.points
-            val ratio = inputRgba.size().height / 500
             for (i in 0..3) {
-                val x = java.lang.Double.valueOf(quad.points[i].x * ratio).toInt()
-                val y = java.lang.Double.valueOf(quad.points[i].y * ratio).toInt()
+                val x = java.lang.Double.valueOf(quad.points[i].x).toInt()
+                val y = java.lang.Double.valueOf(quad.points[i].y).toInt()
                 rescaledPoints[i] = Point(x.toDouble(), y.toDouble())
             }
             return Quadrilateral(quad.contour, rescaledPoints)
@@ -130,9 +129,8 @@ internal class OpenCvNativeBridge {
         return null
     }
     private fun getQuadrilateral(contours: ArrayList<MatOfPoint>?, srcSize: Size): Quadrilateral? {
-        val ratio = srcSize.height / 500
-        val height = java.lang.Double.valueOf(srcSize.height / ratio).toInt()
-        val width = java.lang.Double.valueOf(srcSize.width / ratio).toInt()
+        val height = java.lang.Double.valueOf(srcSize.height).toInt()
+        val width = java.lang.Double.valueOf(srcSize.width).toInt()
         val size = Size(width.toDouble(), height.toDouble())
         Log.i("COUCOU", "Size----->$size")
         if (contours != null) {
@@ -178,9 +176,8 @@ internal class OpenCvNativeBridge {
         val grayImage: Mat
         val cannedImage: Mat
         val resizedImage: Mat
-        val ratio = src.size().height / 500
-        val height = java.lang.Double.valueOf(src.size().height / ratio).toInt()
-        val width = java.lang.Double.valueOf(src.size().width / ratio).toInt()
+        val height = java.lang.Double.valueOf(src.size().height).toInt()
+        val width = java.lang.Double.valueOf(src.size().width).toInt()
         val size = Size(width.toDouble(), height.toDouble())
         resizedImage = Mat(size, CvType.CV_8UC4)
         grayImage = Mat(size, CvType.CV_8UC4)
