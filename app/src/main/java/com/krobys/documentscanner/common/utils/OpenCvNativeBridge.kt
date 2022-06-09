@@ -21,6 +21,7 @@ package com.krobys.documentscanner.common.utils
 
 import android.graphics.Bitmap
 import android.graphics.PointF
+import android.util.Log
 import com.krobys.documentscanner.common.extensions.scaleRectangle
 import com.krobys.documentscanner.common.extensions.toBitmap
 import com.krobys.documentscanner.common.extensions.toMat
@@ -28,7 +29,6 @@ import com.krobys.documentscanner.ui.components.Quadrilateral
 import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.math.*
 
 
@@ -87,29 +87,128 @@ internal class OpenCvNativeBridge {
 
     // patch from Udayraj123 (https://github.com/Udayraj123/LiveEdgeDetection)
     fun detectLargestQuadrilateral(src: Mat): Quadrilateral? {
-        val destination = Mat()
-        Imgproc.blur(src, src, Size(BLURRING_KERNEL_SIZE, BLURRING_KERNEL_SIZE))
+//        val destination = Mat()
+//        Imgproc.blur(src, src, Size(BLURRING_KERNEL_SIZE, BLURRING_KERNEL_SIZE))
+//
+//        Core.normalize(src, src, NORMALIZATION_MIN_VALUE, NORMALIZATION_MAX_VALUE, Core.NORM_MINMAX)
+//
+//        Imgproc.threshold(src, src, TRUNCATE_THRESHOLD, NORMALIZATION_MAX_VALUE, Imgproc.THRESH_TRUNC)
+//        Core.normalize(src, src, NORMALIZATION_MIN_VALUE, NORMALIZATION_MAX_VALUE, Core.NORM_MINMAX)
+//
+//        Imgproc.Canny(src, destination, CANNY_THRESHOLD_HIGH, CANNY_THRESHOLD_LOW)
+//
+//        Imgproc.threshold(destination, destination, CUTOFF_THRESHOLD, NORMALIZATION_MAX_VALUE, Imgproc.THRESH_TOZERO)
+//
+//        Imgproc.morphologyEx(
+//            destination, destination, Imgproc.MORPH_CLOSE,
+//            Mat(Size(CLOSE_KERNEL_SIZE, CLOSE_KERNEL_SIZE), CvType.CV_8UC1, Scalar(NORMALIZATION_MAX_VALUE)),
+//            Point(-1.0, -1.0), 1
+//        )
+//
+//        val largestContour: List<MatOfPoint>? = findLargestContours(destination)
+//        if (null != largestContour) {
+//            return findQuadrilateral(largestContour)
+//        }
+//        return null
+        return detectPreviewDocument(src)
+    }
 
-        Core.normalize(src, src, NORMALIZATION_MIN_VALUE, NORMALIZATION_MAX_VALUE, Core.NORM_MINMAX)
-
-        Imgproc.threshold(src, src, TRUNCATE_THRESHOLD, NORMALIZATION_MAX_VALUE, Imgproc.THRESH_TRUNC)
-        Core.normalize(src, src, NORMALIZATION_MIN_VALUE, NORMALIZATION_MAX_VALUE, Core.NORM_MINMAX)
-
-        Imgproc.Canny(src, destination, CANNY_THRESHOLD_HIGH, CANNY_THRESHOLD_LOW)
-
-        Imgproc.threshold(destination, destination, CUTOFF_THRESHOLD, NORMALIZATION_MAX_VALUE, Imgproc.THRESH_TOZERO)
-
-        Imgproc.morphologyEx(
-            destination, destination, Imgproc.MORPH_CLOSE,
-            Mat(Size(CLOSE_KERNEL_SIZE, CLOSE_KERNEL_SIZE), CvType.CV_8UC1, Scalar(NORMALIZATION_MAX_VALUE)),
-            Point(-1.0, -1.0), 1
-        )
-
-        val largestContour: List<MatOfPoint>? = findLargestContours(destination)
-        if (null != largestContour) {
-            return findQuadrilateral(largestContour)
+    private fun detectPreviewDocument(inputRgba: Mat): Quadrilateral? {
+        val contours: ArrayList<MatOfPoint>? = findContours(inputRgba)
+        val quad: Quadrilateral? = getQuadrilateral(contours, inputRgba.size())
+        Log.i("DESENHAR", "Quad----->$quad")
+        if (quad != null) {
+            val rescaledPoints = quad.points
+            val ratio = inputRgba.size().height / 500
+            for (i in 0..3) {
+                val x = java.lang.Double.valueOf(quad.points[i].x * ratio).toInt()
+                val y = java.lang.Double.valueOf(quad.points[i].y * ratio).toInt()
+                rescaledPoints[i] = Point(x.toDouble(), y.toDouble())
+            }
+            return Quadrilateral(quad.contour, rescaledPoints)
         }
         return null
+    }
+    private fun getQuadrilateral(contours: ArrayList<MatOfPoint>?, srcSize: Size): Quadrilateral? {
+        val ratio = srcSize.height / 500
+        val height = java.lang.Double.valueOf(srcSize.height / ratio).toInt()
+        val width = java.lang.Double.valueOf(srcSize.width / ratio).toInt()
+        val size = Size(width.toDouble(), height.toDouble())
+        Log.i("COUCOU", "Size----->$size")
+        if (contours != null) {
+            for (c in contours) {
+                val c2f = MatOfPoint2f(*c.toArray())
+                val peri = Imgproc.arcLength(c2f, true)
+                val approx = MatOfPoint2f()
+                Imgproc.approxPolyDP(c2f, approx, 0.02 * peri, true)
+                val points = approx.toArray()
+
+                // select biggest 4 angles polygon
+                // if (points.length == 4) {
+                val foundPoints = sortPoints(points)
+                if (insideArea(foundPoints, size)) {
+                    return Quadrilateral(approx, foundPoints)
+                }
+                // }
+            }
+        }
+        return null
+    }
+
+    private fun insideArea(rp: Array<Point>, size: Size): Boolean {
+        val width = java.lang.Double.valueOf(size.width).toInt()
+        val height = java.lang.Double.valueOf(size.height).toInt()
+        val minimumSize = width / 10
+        val isANormalShape =
+            rp[0].x !== rp[1].x && rp[1].y !== rp[0].y && rp[2].y !== rp[3].y && rp[3].x !== rp[2].x
+        val isBigEnough = (rp[1].x - rp[0].x >= minimumSize && rp[2].x - rp[3].x >= minimumSize
+                && rp[3].y - rp[0].y >= minimumSize && rp[2].y - rp[1].y >= minimumSize)
+        val leftOffset = rp[0].x - rp[3].x
+        val rightOffset = rp[1].x - rp[2].x
+        val bottomOffset = rp[0].y - rp[1].y
+        val topOffset = rp[2].y - rp[3].y
+        val isAnActualRectangle = (leftOffset <= minimumSize && leftOffset >= -minimumSize
+                && rightOffset <= minimumSize && rightOffset >= -minimumSize
+                && bottomOffset <= minimumSize && bottomOffset >= -minimumSize
+                && topOffset <= minimumSize && topOffset >= -minimumSize)
+        return isANormalShape && isAnActualRectangle && isBigEnough
+    }
+
+    private fun findContours(src: Mat): ArrayList<MatOfPoint>? {
+        val grayImage: Mat
+        val cannedImage: Mat
+        val resizedImage: Mat
+        val ratio = src.size().height / 500
+        val height = java.lang.Double.valueOf(src.size().height / ratio).toInt()
+        val width = java.lang.Double.valueOf(src.size().width / ratio).toInt()
+        val size = Size(width.toDouble(), height.toDouble())
+        resizedImage = Mat(size, CvType.CV_8UC4)
+        grayImage = Mat(size, CvType.CV_8UC4)
+        cannedImage = Mat(size, CvType.CV_8UC1)
+        Imgproc.resize(src, resizedImage, size)
+        Imgproc.cvtColor(resizedImage, grayImage, Imgproc.COLOR_RGBA2GRAY, 4)
+        Imgproc.GaussianBlur(grayImage, grayImage, Size(5.0, 5.0), 0.0)
+        Imgproc.Canny(grayImage, cannedImage, 80.0, 100.0, 3, false)
+        val contours = ArrayList<MatOfPoint>()
+        val hierarchy = Mat()
+        Imgproc.findContours(
+            cannedImage,
+            contours,
+            hierarchy,
+            Imgproc.RETR_TREE,
+            Imgproc.CHAIN_APPROX_SIMPLE
+        )
+        hierarchy.release()
+        Collections.sort(contours, object : Comparator<MatOfPoint?> {
+
+            override fun compare(lhs: MatOfPoint?, rhs: MatOfPoint?): Int {
+                return java.lang.Double.compare(Imgproc.contourArea(rhs), Imgproc.contourArea(lhs))
+            }
+        })
+        resizedImage.release()
+        grayImage.release()
+        cannedImage.release()
+        return contours
     }
 
     private fun findQuadrilateral(mContourList: List<MatOfPoint>): Quadrilateral? {
