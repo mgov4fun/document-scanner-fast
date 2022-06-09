@@ -144,9 +144,10 @@ internal class OpenCvNativeBridge {
                 // select biggest 4 angles polygon
                 // if (points.length == 4) {
                 val foundPoints = sortPoints(points)
-                if (insideArea(foundPoints, size)) {
-                    return Quadrilateral(approx, foundPoints)
-                }
+//                if (insideArea(foundPoints, size)) {
+//                    return Quadrilateral(approx, foundPoints)
+//                }
+                return Quadrilateral(approx, foundPoints)
                 // }
             }
         }
