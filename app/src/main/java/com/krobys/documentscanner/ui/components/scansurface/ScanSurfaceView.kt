@@ -91,15 +91,6 @@ internal class ScanSurfaceView : FrameLayout {
         LayoutInflater.from(context).inflate(R.layout.scan_surface_view, this, true)
     }
 
-    fun updateSizeOnViewLoad(view: View) {
-        view.doOnLayout {
-            (layoutParams as? LayoutParams)?.apply {
-                width = it.width
-                height = it.width / 3 * 4
-            }
-        }
-    }
-
     fun start() {
         viewFinder.post {
             viewFinder.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
