@@ -82,8 +82,20 @@ internal class ScanSurfaceView : FrameLayout {
     private var isFlashEnabled: Boolean = false
     private var flashMode: Int = ImageCapture.FLASH_MODE_OFF
 
+    private var lastPoints = emptyList<Point>()
+    private var shouldCancelAutoCapture = false
+
     init {
         LayoutInflater.from(context).inflate(R.layout.scan_surface_view, this, true)
+    }
+
+    fun updateSizeOnViewLoad(view: View) {
+        view.doOnLayout {
+            (layoutParams as? LayoutParams)?.apply {
+                width = it.width
+                height = it.width / 3 * 4
+            }
+        }
     }
 
     fun start() {
@@ -196,16 +208,40 @@ internal class ScanSurfaceView : FrameLayout {
         val imgDetectionPropsObj = ImageDetectionProperties(previewWidth.toDouble(), previewHeight.toDouble(),
             points[0], points[1], points[2], points[3], resultWidth.toInt(), resultHeight.toInt())
 
+        pointsMonitor(points[0], points[1], points[2], points[3])
+
         if (imgDetectionPropsObj.isNotValidImage(approx)) {
             scanCanvasView.showShape(previewWidth, previewHeight, points)
             cancelAutoCapture()
         } else {
             if (isAutoCaptureOn && !isAutoCaptureScheduled) {
                 scheduleAutoCapture()
+            } else if (shouldCancelAutoCapture) {
+                cancelAutoCapture()
             }
             scanCanvasView.showShape(previewWidth, previewHeight, points)
         }
     }
+
+    private fun pointsMonitor(vararg points: Point) {
+        points.toList().apply {
+            shouldCancelAutoCapture = filterIndexed { i, point ->
+                lastPoints.getOrNull(i).hasBeenModified(point)
+            }.isNotEmpty()
+
+            lastPoints = this
+        }
+    }
+
+    private fun Point?.hasBeenModified(other: Point) =
+        this?.let {
+            it.y.diffPercentage(other.y) > 0.1 || it.x.diffPercentage(other.x) > 0.1
+        } ?: false
+
+    private fun Double?.diffPercentage(other: Double) =
+        this?.let {
+            abs(it - other) / it
+        } ?: 0.0
 
     private fun scheduleAutoCapture() {
         isAutoCaptureScheduled = true
